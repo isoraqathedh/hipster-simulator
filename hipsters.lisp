@@ -1,5 +1,4 @@
 ;;;; HIPSTER SIMULATOR 2014
-;;;; By Isoraqathedh Zorethan <isoraqathedh.zorethan@gmail.com>
 ;;;; A Common Lisp implmentation of the hipster model as seen in http://arxiv.org/abs/1410.8001.
 
 (defpackage info.isoraqathedh.hipster-simulator
