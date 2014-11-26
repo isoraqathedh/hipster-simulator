@@ -82,56 +82,69 @@
   (assert (<= 0 probability 1) (probability))
   (< (random 1.0) probability))
 
-(defgeneric style-popularity (town &optional delete-1-stat)
+(defgeneric style-popularity (town)
   (:documentation "Determines the popularity of each style in the town.")
-  (:method ((town hipster-town-snapshot) &optional delete-1-stat)
+  (:method ((town hipster-town-snapshot))
     (loop with stats = (loop for style across (styles town)
-                             collect (cons style (if (eql style delete-1-stat) -1 0)))
+                             collect (cons style 0))
           for i in (population town)
           do (incf (cdr (assoc i stats)))
-          finally (return (sort stats #'< :key #'cdr))))
-  (:method ((town hipster-town-delay) &optional delete-1-stat)
+          finally (return stats)))
+  (:method ((town hipster-town-delay))
     (call-next-method
      (make-instance 'hipster-town-snapshot
                     :styles (styles town)
-                    :population (aref (town-history town) (mod (1+ (ticks town)) (period town))))
-     delete-1-stat)))
+                    :population (aref (town-history town) (mod (1+ (ticks town)) (period town)))))))
+
+(defgeneric survey (town)
+  (:documentation "Counts what styles the inhabitant sees.")
+  (:method ((town hipster-town-snapshot))
+    (loop with style-list = (style-popularity town)
+          for (style) in style-list
+          for i = (copy-tree style-list)
+          do (decf (cdr (assoc style i)))
+          collect (cons style (nbutlast (sort i #'< :key #'cdr)
+                                        (ceiling (/ (length style-list) 2)))))))
 
 (defgeneric deconform (town)
   (:documentation "Simulates the selection of styles of all hipsters.
 In this case, they will attempt at random any style on the less popular half of the style.")
   (:method ((town hipster-town-snapshot))
-    (mapcar #'(lambda (style-of-self)
-                (cond
-                  ((true-with-probability (hipsterish-tendency town))
-                   (let ((candidate-styles
-                           (nbutlast
-                            (style-popularity town style-of-self)
-                            (ceiling (/ (length (styles town))) 2))))
-                     (car (nth (random (length candidate-styles)) candidate-styles))))
-                  ((true-with-probability 10/11) style-of-self)
-                  (t (aref (styles town) (random (length (styles town)))))))
-            (population town)))
+    (let ((candidate-styles (survey town)))
+      (mapcar #'(lambda (style-of-self)
+                  (cond
+                    ((true-with-probability (hipsterish-tendency town))
+                     (car (nth
+                           (random
+                            (length
+                             (cdr (assoc style-of-self candidate-styles))))
+                           (cdr (assoc style-of-self candidate-styles)))))
+                    ((true-with-probability 10/11) style-of-self)
+                    (t (aref (styles town) (random (length (styles town)))))))
+              (population town))))
   (:method ((town hipster-town-delay))
-    (mapcar (if (numberp (aref (town-history town) (mod (1+ (ticks town)) (period town))))
-                ;; While the history fills up, randomly wander, changing fashions 1/6 of the time
-                #'(lambda (style-of-self)
-                    (if (true-with-probability 1/6)
-                        (aref (styles town) (random (length (styles town))))
-                        style-of-self))
-                ;; After that, proceed as normal
-                #'(lambda (style-of-self)
-                    (cond
-                      ((true-with-probability (hipsterish-tendency town))
-                       (let ((candidate-styles
-                               (nbutlast
-                                (style-popularity town style-of-self)
-                                (ceiling (/ (length (styles town))) 2))))
-                         (car (nth (random (length candidate-styles)) candidate-styles))))
-                      ((true-with-probability 10/11)
-                       style-of-self)
-                      (t (aref (styles town) (random (length (styles town))))))))
-            (population town))))
+    (if (numberp (aref (town-history town) (mod (1+ (ticks town)) (period town))))
+        (mapcar 
+         ;; While the history fills up, randomly wander, changing fashions 1/6 of the time
+         #'(lambda (style-of-self)
+             (if (true-with-probability 1/6)
+                 (aref (styles town) (random (length (styles town))))
+                 style-of-self))
+         (population town))
+        (let ((candidate-styles (survey town)))
+          (mapcar 
+           ;; After that, proceed as normal
+           #'(lambda (style-of-self)
+               (cond
+                 ((true-with-probability (hipsterish-tendency town))
+                  (car (nth
+                        (random
+                         (length
+                          (cdr (assoc style-of-self candidate-styles))))
+                        (cdr (assoc style-of-self candidate-styles)))))
+                 ((true-with-probability 10/11) style-of-self)
+                 (t (aref (styles town) (random (length (styles town)))))))
+           (population town))))))
 
 (defgeneric tick (town)
   (:documentation "Nondestructively returns the next iteration of the simulation.")
