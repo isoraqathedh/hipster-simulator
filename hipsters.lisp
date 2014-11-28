@@ -44,14 +44,14 @@
               (aref styles (random (length styles))))
           (make-list population)))
                
-(defun build-new-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
+(defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
   "Builds a new town with a population of population, seeding with the two types of clothes."
   (make-instance 'town-snapshot
                  :population (generate-random-town population styles)
                  :styles styles
                  :hipsterish-tendency hipsterish-tendency))
 
-(defun build-delayed-town (population period &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
+(defun make-delayed-town (population period &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
   (make-instance 'delayed-town
                  :population (generate-random-town population styles)
                  :period period
