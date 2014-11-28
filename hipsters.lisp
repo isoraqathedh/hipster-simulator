@@ -63,7 +63,8 @@
                  :styles styles))
 
 (defmethod initialize-instance :after ((instance delayed-town) &key)
-  (setf (aref (town-history instance) (mod (ticks instance) (period instance))) (population instance)))
+  (when (zerop (ticks instance))
+    (setf (aref (town-history instance) (mod (ticks instance) (period instance))) (population instance))))
 
 ;;; Common class methods
 
@@ -76,6 +77,29 @@
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (period period)) object
     (print-unreadable-object (object stream :type t)
       (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a" (length population) (* tendency 100) (length styles) period ticks))))
+
+(defgeneric copy-town (town)
+  (:documentation "Returns a deep copy of a given town. Useful for when you need to keep the initiator town around.")
+  (:method ((town town-snapshot))
+    (make-instance 'town-snapshot
+                   :hipsterish-tendency (hipsterish-tendency town)
+                   :styles              (styles town)
+                   :population          (copy-seq (population town))
+                                        ; This line might have to change as I may replace the characters with actual human objects.
+                   :time                (ticks town)))
+  (:method ((town delayed-town))
+    (make-instance 'delayed-town
+                   :hipsterish-tendency (hipsterish-tendency town)
+                   :styles              (styles town)
+                   :population          (copy-seq (population town)) ; Same here.
+                   :time                (ticks town)
+                   :period              (period town)
+                   :history             (loop with history = (make-array (list (period town)))
+                                              ;; Copying arrays with lists embedded in them = ugh.
+                                              for i across (town-history town)
+                                              for j from 0
+                                              do (setf (aref history j) i)
+                                              finally (return history)))))
 
 ;;; Other methods
 
@@ -148,15 +172,6 @@ In this case, they will attempt at random any style on the less popular half of 
                  ((true-with-probability 10/11) style-of-self)
                  (t (aref (styles town) (random (length (styles town)))))))
            (population town))))))
-
-(defgeneric tick (town)
-  (:documentation "Nondestructively returns the next iteration of the simulation.")
-  (:method ((town town-snapshot))
-    (make-instance 'town-snapshot
-                   :time                (1+ (ticks town))
-                   :population          (deconform town)
-                   :styles              (styles town)
-                   :hipsterish-tendency (hipsterish-tendency town))))
           
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
@@ -191,8 +206,9 @@ In this case, they will attempt at random any style on the less popular half of 
                                                  1/100))))))
 
 ;;; When seeing the development of the town, we need to repeat things a lot.
-(defmacro with-town-iterator ((var town &key (times 20) (tick-time :before)) &body body)
-  `(let ((,var ,town))
+(defmacro with-town-iterator ((var town &key (times 20) (tick-time :before) copyp) &body body)
+  "Creates a loop that evolves a town, allowing the user to do something for each generation of the town. Can be made nondestructive by passing non-nil to copyp."
+  `(let ((,var ,(if copyp `(copy-town ,town) town)))
      (assert (typep ,var 'town-snapshot))
      (assert (typep ,tick-time '(member :before :after)))
      (assert (typep ,times '(integer 1)))
