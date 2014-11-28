@@ -195,6 +195,7 @@ In this case, they will attempt at random any style on the less popular half of 
   `(let ((,var ,town))
      (assert (typep ,var 'town-snapshot))
      (assert (typep ,tick-time '(member :before :after)))
+     (assert (typep ,times '(integer 1)))
      (loop repeat ,times
            do (progn
                 ,(if (eql tick-time :before) `(tick! ,var))
