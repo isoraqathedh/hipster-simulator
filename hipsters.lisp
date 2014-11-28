@@ -12,6 +12,10 @@
 
 ;;; Classes
 
+(defstruct inhabitant
+  (style #\.)
+  (hipsterish-tendency 2/3))
+
 (defclass town-snapshot ()
   ((ticks :initform 0
           :initarg :time
@@ -36,7 +40,19 @@
            :documentation "How long before the individuals know the clothing choice of their peers, measured in ticks.")
    (history :initarg :history
             :accessor town-history
-            :documentation "The last iterations of the simulation, for use in computing certain future iterations.")))
+            :documentation "The last iterations of the simulation, for use in computing certain future iterations."))
+  (:documentation "A town with a temporal delay. Inhabitants are only able to see their popularities from some time ago."))
+
+(defclass foggy-town (town-snapshot)
+  ((visibility :initform 4
+               :initarg :visibility
+               :accessor visibility
+               :documentation "How many other other inhabitants that each inhabitant can see."))
+  (:documentation "A town with a spatial delay. Inhabitants are only able to see their popularities with reference to a subset of the population."))
+
+;; Structs are easy but they still need a bit of tweaking.
+(defmethod hipsterish-tendency ((object inhabitant)) (inhabitant-hipsterish-tendency object))
+(defmethod styles ((object inhabitant)) (inhabitant-style object))
 
 ;;; Class constructors
 
@@ -66,6 +82,13 @@
   (when (zerop (ticks instance))
     (setf (aref (town-history instance) (mod (ticks instance) (period instance))) (population instance))))
 
+(defun make-foggy-town (population visibility &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
+  (make-instance 'foggy-town
+                 :population (generate-random-town population styles)
+                 :visibility visibility
+                 :hipsterish-tendency hipsterish-tendency
+                 :styles styles))
+
 ;;; Common class methods
 
 (defmethod print-object ((object town-snapshot) stream)
@@ -77,6 +100,12 @@
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (period period)) object
     (print-unreadable-object (object stream :type t)
       (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a" (length population) (* tendency 100) (length styles) period ticks))))
+
+(defmethod print-object ((object foggy-town) stream)
+  (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (visibility visibility)) object
+    (print-unreadable-object (object stream :type t)
+      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :VISIBILITY ~a @ t = ~a"
+              (length population) (* tendency 100) (length styles) visibility ticks))))
 
 (defgeneric copy-town (town)
   (:documentation "Returns a deep copy of a given town. Useful for when you need to keep the initiator town around.")
@@ -121,7 +150,15 @@
     (call-next-method
      (make-instance 'town-snapshot
                     :styles (styles town)
-                    :population (aref (town-history town) (mod (1+ (ticks town)) (period town)))))))
+                    :population (aref (town-history town) (mod (1+ (ticks town)) (period town))))))
+  (:method ((town foggy-town))
+    (loop with stats = (loop for style across (styles town) collect (cons style 0))
+          with population = (population town)
+          for i from 1 to (visibility town)
+          for sample = (nth (random (length population)) population)
+          do (incf (cdr (assoc sample stats)))
+          finally (return stats))))
+          
 
 (defgeneric survey (town)
   (:documentation "Counts what styles the inhabitant sees.")
@@ -129,7 +166,8 @@
     (loop with style-list = (style-popularity town)
           for (style) in style-list
           for i = (copy-tree style-list)
-          do (decf (cdr (assoc style i)))
+          unless (zerop (cdr (assoc style i))) ; This doesn't perfectly implement "don't count yourself" but that would have to wait.
+            do (decf (cdr (assoc style i)))
           collect (cons style (nbutlast (sort i #'< :key #'cdr)
                                         (ceiling (/ (length style-list) 2)))))))
 
