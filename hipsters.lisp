@@ -70,12 +70,12 @@
 (defmethod print-object ((object town-snapshot) stream)
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a @ t = ~a" (length population) (* tendency 100) styles ticks))))
+      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a @ t = ~a" (length population) (* tendency 100) (length styles) ticks))))
 
 (defmethod print-object ((object delayed-town) stream)
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (period period)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a" (length population) (* tendency 100) styles period ticks))))
+      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a" (length population) (* tendency 100) (length styles) period ticks))))
 
 ;;; Other methods
 
