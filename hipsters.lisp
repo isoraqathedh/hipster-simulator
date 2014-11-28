@@ -169,7 +169,7 @@ In this case, they will attempt at random any style on the less popular half of 
 ;;; Reporting methods
 
 (defgeneric print-population (town &key stream limit specific-style)
-  (:documentation "Prints out the first [limit] members in the population along with a generation number wearing the given style if non-nil.")
+  (:documentation "Prints out the members in the population along with a generation number wearing the given style if non-nil, truncated to [limit] members if provided.")
   (:method ((town town-snapshot) &key (stream t) limit specific-style)
     (with-accessors ((age ticks) (members population)) town
       (if specific-style
@@ -180,7 +180,7 @@ In this case, they will attempt at random any style on the less popular half of 
           (format stream "~&~3d: ~{~a~}~:[~;…~]" age (subseq members 0 limit) limit)))))
 
 (defgeneric print-popularity (town &key stream limit)
-  (:documentation "Prints out the first [limit] styles and its percentage popularity, along with a genreation number.")
+  (:documentation "Prints out the styles and its percentage popularity, along with a genreation number, truncated to [limit] styles if provided.")
   (:method ((town town-snapshot) &key (stream t) limit)
     (with-accessors ((age ticks) (members population) (styles styles)) town
       (format stream "~&~3d:  " age)
