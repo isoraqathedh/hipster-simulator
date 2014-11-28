@@ -7,6 +7,9 @@
 
 (in-package :hipster-simulator)
 
+(defvar *style-character-list* "#.=?O|+*_:~X;'$%^\"/vq`"
+  "List of characters eligible for styles. This can be rebound if you desire more characters.")
+
 ;;; Classes
 
 (defclass town-snapshot ()
