@@ -129,7 +129,14 @@
                                               for i across (town-history town)
                                               for j from 0
                                               do (setf (aref history j) i)
-                                              finally (return history)))))
+                                              finally (return history))))
+  (:method ((town foggy-town))
+    (Make-instance 'foggy-town
+                   :visibility          (visibility town)
+                   :hipsterish-tendency (hipsterish-tendency town)
+                   :styles              (styles town)
+                   :population          (mapcar #'copy-inhabitant (population town))
+                   :time                (ticks town))))
 
 ;;; Other methods
 
