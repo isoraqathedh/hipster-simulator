@@ -13,8 +13,9 @@
 ;;; Classes
 
 (defstruct inhabitant
+  (type :hipster)
   (style #\.)
-  (hipsterish-tendency 2/3))
+  hipsterish-tendency)
 
 (defclass town-snapshot ()
   ((ticks :initform 0
@@ -60,7 +61,7 @@
   "Generates a random town of n people with the given vector of styles."
   (mapcar #'(lambda (a)
               (declare (ignore a))
-              (aref styles (random (length styles))))
+              (make-inhabitant :style (aref styles (random (length styles)))))
           (make-list population)))
                
 (defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
@@ -113,14 +114,14 @@
     (make-instance 'town-snapshot
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (copy-seq (population town))
+                   :population          (mapcar #'copy-inhabitant (population town))
                                         ; This line might have to change as I may replace the characters with actual human objects.
                    :time                (ticks town)))
   (:method ((town delayed-town))
     (make-instance 'delayed-town
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (copy-seq (population town)) ; Same here.
+                   :population          (mapcar #'copy-inhabitant (population town)) ; Same here.
                    :time                (ticks town)
                    :period              (period town)
                    :history             (loop with history = (make-array (list (period town)))
@@ -226,11 +227,9 @@ In this case, they will attempt at random any style on the less popular half of 
   (:method ((town town-snapshot) &key (stream t) limit specific-style)
     (with-accessors ((age ticks) (members population)) town
       (if specific-style
-          (format stream "~&~3d: ~{~a~}~:[~;…~]" age (mapcar #'(lambda (a) (if (char-equal specific-style a)
-                                                                                         specific-style
-                                                                                         #\Space))
-                                                                       (subseq members 0 limit)) limit)
-          (format stream "~&~3d: ~{~a~}~:[~;…~]" age (subseq members 0 limit) limit)))))
+          (format stream "~&~3d: ~{~a~}~:[~;…~]" age (substitute-if #\Space #'(lambda (a) (char-not-equal specific-style a))
+                                                                    (mapcar #'styles (subseq members 0 limit))) limit)
+          (format stream "~&~3d: ~{~a~}~:[~;…~]" age (mapcar #'styles (subseq members 0 limit)) limit)))))
 
 (defgeneric print-popularity (town &key stream limit)
   (:documentation "Prints out the styles and its percentage popularity, along with a genreation number, truncated to [limit] styles if provided.")
@@ -239,7 +238,7 @@ In this case, they will attempt at random any style on the less popular half of 
       (format stream "~&~3d:  " age)
       (loop for i across styles
             for j from 0 below (or limit (length styles))
-            do (format stream "~20@<~a ~7,2f%~>" i (/ (count-if #'(lambda (a) (char-equal i a)) members)
+            do (format stream "~20@<~a ~7,2f%~>" i (/ (count-if #'(lambda (a) (char-equal i (styles a))) members)
                                                  (length members)
                                                  1/100))))))
 
