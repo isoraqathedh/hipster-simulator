@@ -199,26 +199,24 @@ In this case, they will attempt at random any style on the less popular half of 
             (population town))))
   (:method ((town delayed-town))
     (if (numberp (aref (town-history town) (mod (1+ (ticks town)) (period town))))
-        (mapc 
-         ;; While the history fills up, randomly wander, changing fashions 1/6 of the time
-         #'(lambda (style-of-self)
-             (setf (styles style-of-self)
-                   (if (true-with-probability 1/6)
-                       (aref (styles town) (random (length (styles town))))
-                       (styles style-of-self))))
+        ;; While the history fills up, randomly wander, changing fashions 1/6 of the time
+        (mapc #'(lambda (style-of-self)
+                  (setf (styles style-of-self)
+                        (if (true-with-probability 1/6)
+                            (aref (styles town) (random (length (styles town))))
+                            (styles style-of-self))))
          (population town))
         (let ((candidate-styles (survey town)))
-          (mapc
-           ;; After that, proceed as normal
-           #'(lambda (style-of-self)
-               (setf (styles style-of-self)
-                     (cond
-                       ((true-with-probability (hipsterish-tendency town))
-                        (select-style (styles style-of-self) candidate-styles))
-                       ((true-with-probability 10/11) (styles style-of-self))
-                       (t (aref (styles town) (random (length (styles town))))))))
-           (population town))))))
-          
+          ;; After that, proceed as normal
+          (mapc #'(lambda (style-of-self)
+                    (setf (styles style-of-self)
+                          (cond
+                            ((true-with-probability (hipsterish-tendency town))
+                             (select-style (styles style-of-self) candidate-styles))
+                            ((true-with-probability 10/11) (styles style-of-self))
+                            (t (aref (styles town) (random (length (styles town))))))))
+                (population town))))))
+
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
@@ -233,10 +231,13 @@ In this case, they will attempt at random any style on the less popular half of 
   (:documentation "Prints out the members in the population along with a generation number wearing the given style if non-nil, truncated to [limit] members if provided.")
   (:method ((town town-snapshot) &key (stream t) limit specific-style)
     (with-accessors ((age ticks) (members population)) town
-      (if specific-style
-          (format stream "~&~3d: ~{~a~}~:[~;…~]" age (substitute-if #\Space #'(lambda (a) (char-not-equal specific-style a))
-                                                                    (mapcar #'styles (subseq members 0 limit))) limit)
-          (format stream "~&~3d: ~{~a~}~:[~;…~]" age (mapcar #'styles (subseq members 0 limit)) limit)))))
+      (format stream "~&~3d: ~{~a~}~:[~;…~]"
+              age
+              (if specific-style
+                  (substitute-if #\Space #'(lambda (a) (char-not-equal specific-style a))
+                                 (mapcar #'styles (subseq members 0 limit)))
+                  (mapcar #'styles (subseq members 0 limit)))
+              limit))))
 
 (defgeneric print-popularity (town &key stream limit)
   (:documentation "Prints out the styles and its percentage popularity, along with a genreation number, truncated to [limit] styles if provided.")
