@@ -120,28 +120,29 @@
     (make-instance 'town-snapshot
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (mapcar #'copy-inhabitant (population town))
+                   :population          (map 'vector #'copy-inhabitant (population town))
                                         ; This line might have to change as I may replace the characters with actual human objects.
                    :time                (ticks town)))
   (:method ((town delayed-town))
     (make-instance 'delayed-town
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (mapcar #'copy-inhabitant (population town)) ; Same here.
+                   :population          (map 'vector #'copy-inhabitant (population town)) ; Same here.
                    :time                (ticks town)
                    :period              (period town)
-                   :history             (loop with history = (make-array (list (period town)))
-                                              ;; Copying arrays with lists embedded in them = ugh.
-                                              for i across (town-history town)
-                                              for j from 0
-                                              do (setf (aref history j) i)
+                   :history             (loop with history = (make-array (list (period town) (length (population town)))
+                                                                         :adjustable (adjustable-array-p (town-history town)))
+                                              ;; Copying multidimensional arrays = ugh.
+                                              for i from 0 below (period town)
+                                              do (loop for j from 0 below (length (population town))
+                                                       do (setf (aref history i j) (aref (town-history town) i j)))
                                               finally (return history))))
   (:method ((town foggy-town))
     (Make-instance 'foggy-town
                    :visibility          (visibility town)
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (mapcar #'copy-inhabitant (population town))
+                   :population          (map 'vector #'copy-inhabitant (population town))
                    :time                (ticks town))))
 
 ;;; Other methods
@@ -233,8 +234,8 @@
               age
               (if specific-style
                   (substitute-if #\Space #'(lambda (a) (char-not-equal specific-style a))
-                                 (mapcar #'styles (subseq members 0 limit)))
-                  (mapcar #'styles (subseq members 0 limit)))
+                                 (map 'list #'styles (subseq members 0 limit)))
+                  (map 'list #'styles (subseq members 0 limit)))
               limit))))
 
 (defgeneric print-popularity (town &key stream limit)
