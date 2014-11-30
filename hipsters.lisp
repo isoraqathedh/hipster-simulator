@@ -188,9 +188,8 @@
   (let ((style-alist (cdr (assoc style style-alist))))
     (car (nth (random (length style-alist)) style-alist))))
 
-(defgeneric deconform (town)
-  (:documentation "Simulates the selection of styles of all hipsters.
-In this case, they will attempt at random any style on the less popular half of the style.")
+(defgeneric tick! (town)
+  (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
     (let ((candidate-styles (survey town)))
       (loop for i across (population town)
@@ -216,12 +215,7 @@ In this case, they will attempt at random any style on the less popular half of 
                            ((true-with-probability (hipsterish-tendency town))
                             (select-style (styles i) candidate-styles))
                            ((true-with-probability 10/11) (styles i))
-                           (t (aref (styles town) (random (length (styles town))))))))))))
-
-(defgeneric tick! (town)
-  (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
-  (:method ((town town-snapshot))
-    (deconform town))
+                           (t (aref (styles town) (random (length (styles town)))))))))))
   (:method :after ((town town-snapshot))
     (incf (ticks town)))
   (:method :after ((town delayed-town))
