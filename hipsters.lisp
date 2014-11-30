@@ -59,35 +59,37 @@
 
 ;;; Class constructors
 
-(defun generate-random-town (population styles)
+(defun generate-random-town (population styles volatile)
   "Generates a random town of n people with the given vector of styles."
-  (mapcar #'(lambda (a)
-              (declare (ignore a))
-              (make-inhabitant :style (aref styles (random (length styles)))))
-          (make-list population)))
+  (let ((out (make-array (list population) :adjustable volatile)))
+    (dotimes (i population)
+      (setf (aref out i) (make-inhabitant :style (aref styles (random (length styles))))))
+    out))
                
-(defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
+(defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
   "Builds a new town with a population of population, seeding with the two types of clothes."
   (make-instance 'town-snapshot
-                 :population (generate-random-town population styles)
+                 :population (generate-random-town population styles volatile)
                  :styles styles
                  :hipsterish-tendency hipsterish-tendency))
 
-(defun make-delayed-town (population period &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
+(defun make-delayed-town (population period &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
   (make-instance 'delayed-town
-                 :population (generate-random-town population styles)
+                 :population (generate-random-town population styles volatile)
                  :period period
-                 :history (make-array (list period))
+                 :history (make-array (list period population) :adjustable volatile :initial-element nil)
                  :hipsterish-tendency hipsterish-tendency
                  :styles styles))
 
 (defmethod initialize-instance :after ((instance delayed-town) &key)
   (when (zerop (ticks instance))
-    (setf (aref (town-history instance) (mod (ticks instance) (period instance))) (population instance))))
+    (loop for i across (population instance)
+          for j from 0 below (length (population instance))
+          do (setf (aref (town-history instance) 0 j) i))))
 
-(defun make-foggy-town (population visibility &key (hipsterish-tendency 2/3) (styles #(#\# #\.)))
+(defun make-foggy-town (population visibility &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
   (make-instance 'foggy-town
-                 :population (generate-random-town population styles)
+                 :population (generate-random-town population styles volatile)
                  :visibility visibility
                  :hipsterish-tendency hipsterish-tendency
                  :styles styles))
@@ -97,18 +99,20 @@
 (defmethod print-object ((object town-snapshot) stream)
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a @ t = ~a" (length population) (* tendency 100) (length styles) ticks))))
+      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a @ t = ~a"
+              (adjustable-array-p population) (length population) (* tendency 100) (length styles) ticks))))
 
 (defmethod print-object ((object delayed-town) stream)
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (period period)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a" (length population) (* tendency 100) (length styles) period ticks))))
+      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a"
+              (adjustable-array-p population) (length population) (* tendency 100) (length styles) period ticks))))
 
 (defmethod print-object ((object foggy-town) stream)
   (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (visibility visibility)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :VISIBILITY ~a @ t = ~a"
-              (length population) (* tendency 100) (length styles) visibility ticks))))
+      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :VISIBILITY ~a @ t = ~a"
+              (adjustable-array-p population) (length population) (* tendency 100) (length styles) visibility ticks))))
 
 (defgeneric copy-town (town)
   (:documentation "Returns a deep copy of a given town. Useful for when you need to keep the initiator town around.")
@@ -153,19 +157,19 @@
   (:method ((town town-snapshot))
     (loop with stats = (loop for style across (styles town)
                              collect (cons style 0))
-          for i in (population town)
+          for i across (population town)
           do (incf (cdr (assoc (styles i) stats)))
           finally (return stats)))
   (:method ((town delayed-town))
-    (call-next-method
-     (make-instance 'town-snapshot
-                    :styles (styles town)
-                    :population (aref (town-history town) (mod (1+ (ticks town)) (period town))))))
+    (loop with stats = (loop for style across (styles town) collect (cons style 0))
+          for i from 0 below (length (population town))
+          do (incf (cdr (assoc (styles (aref (town-history town) (mod (1+ (ticks town)) (period town)) i)) stats)))
+          finally (return stats)))
   (:method ((town foggy-town))
     (loop with stats = (loop for style across (styles town) collect (cons style 0))
           with population = (population town)
           for i from 1 to (visibility town)
-          for sample = (styles (nth (random (length population)) population))
+          for sample = (styles (elt population (random (length population))))
           do (incf (cdr (assoc sample stats)))
           finally (return stats))))
 
@@ -189,41 +193,41 @@
 In this case, they will attempt at random any style on the less popular half of the style.")
   (:method ((town town-snapshot))
     (let ((candidate-styles (survey town)))
-      (mapc #'(lambda (style-of-self)
-                (setf (styles style-of-self)
-                      (cond
-                        ((true-with-probability (hipsterish-tendency town))
-                         (select-style (styles style-of-self) candidate-styles))
-                        ((true-with-probability 10/11) (styles style-of-self))
-                        (t (aref (styles town) (random (length (styles town))))))))
-            (population town))))
+      (loop for i across (population town)
+            do (setf (styles i)
+                     (cond
+                       ((true-with-probability (hipsterish-tendency town))
+                        (select-style (styles i) candidate-styles))
+                       ((true-with-probability 10/11) (styles i))
+                       (t (aref (styles town) (random (length (styles town))))))))))
   (:method ((town delayed-town))
-    (if (numberp (aref (town-history town) (mod (1+ (ticks town)) (period town))))
+    (if (null (aref (town-history town) (mod (1+ (ticks town)) (period town)) 0))
         ;; While the history fills up, randomly wander, changing fashions 1/6 of the time
-        (mapc #'(lambda (style-of-self)
-                  (setf (styles style-of-self)
-                        (if (true-with-probability 1/6)
-                            (aref (styles town) (random (length (styles town))))
-                            (styles style-of-self))))
-         (population town))
+        (loop for i across (population town)
+              do (setf (styles i)
+                       (if (true-with-probability 1/6)
+                           (aref (styles town) (random (length (styles town))))
+                           (styles i))))
         (let ((candidate-styles (survey town)))
           ;; After that, proceed as normal
-          (mapc #'(lambda (style-of-self)
-                    (setf (styles style-of-self)
-                          (cond
-                            ((true-with-probability (hipsterish-tendency town))
-                             (select-style (styles style-of-self) candidate-styles))
-                            ((true-with-probability 10/11) (styles style-of-self))
-                            (t (aref (styles town) (random (length (styles town))))))))
-                (population town))))))
+          (loop for i across (population town)
+                do (setf (styles i)
+                         (cond
+                           ((true-with-probability (hipsterish-tendency town))
+                            (select-style (styles i) candidate-styles))
+                           ((true-with-probability 10/11) (styles i))
+                           (t (aref (styles town) (random (length (styles town))))))))))))
 
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
-    (deconform town)
+    (deconform town))
+  (:method :after ((town town-snapshot))
     (incf (ticks town)))
   (:method :after ((town delayed-town))
-    (setf (aref (town-history town) (mod (ticks town) (period town))) (population town))))
+    (loop for i across (population town)
+          for j from 0
+          do (setf (aref (town-history town) (mod (ticks town) (period town)) j) i))))
 
 ;;; Reporting methods
 
