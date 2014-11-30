@@ -135,7 +135,7 @@
                                               ;; Copying multidimensional arrays = ugh.
                                               for i from 0 below (period town)
                                               do (loop for j from 0 below (length (population town))
-                                                       do (setf (aref history i j) (aref (town-history town) i j)))
+                                                       do (setf (aref history i j) (copy-inhabitant (aref (town-history town) i j))))
                                               finally (return history))))
   (:method ((town foggy-town))
     (Make-instance 'foggy-town
