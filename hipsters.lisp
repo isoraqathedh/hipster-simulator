@@ -248,7 +248,7 @@
       (format stream "~&~3d:  " age)
       (loop for i across styles
             for j from 0 below (or limit (length styles))
-            do (format stream "~20@<~a ~7,2f%~>" i (/ (count-if #'(lambda (a) (char-equal i (styles a))) members)
+            do (format stream "~a ~7,2f%~,20t" i (/ (count-if #'(lambda (a) (char-equal i (styles a))) members)
                                                  (length members)
                                                  1/100))))))
 
