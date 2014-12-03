@@ -12,10 +12,21 @@
 
 ;;; Classes
 
-(defstruct inhabitant
-  (type :hipster)
-  (style #\.)
-  hipsterish-tendency)
+(defclass inhabitant ()
+  ((type :initform :hipster
+         :initarg :inhabitant-type
+         :accessor inhabitant-type
+         :documentation "A type of inhabitant. Currently only :hipster is supported.")
+   (style :initform #\.
+          :initarg :style
+          :accessor styles
+          :documentation "What clothes the inhabitant is wearing. Must be a character.")
+   (hipsterish-tendency :initform 2/3
+                        :initarg :hipsterish-tendency
+                        :accessor hipsterish-tendency
+                        :documentation "How likely would this individual be nonconformist at any given time."))
+  (:documentation "An inhabitant in a hipster town."))
+          
 
 (defclass town-snapshot ()
   ((ticks :initform 0
@@ -51,19 +62,13 @@
                :documentation "How many other other inhabitants that each inhabitant can see."))
   (:documentation "A town with a spatial delay. Inhabitants are only able to see their popularities with reference to a subset of the population."))
 
-;; Structs are easy but they still need a bit of tweaking.
-(defmethod hipsterish-tendency ((object inhabitant)) (inhabitant-hipsterish-tendency object))
-(defmethod (setf hipsterish-tendency) (value (object inhabitant) ) (setf (inhabitant-hipsterish-tendency object) value))
-(defmethod styles ((object inhabitant)) (inhabitant-style object))
-(defmethod (setf styles) (value (object inhabitant)) (setf (inhabitant-style object) value))
-
 ;;; Class constructors
 
 (defun generate-random-town (population styles volatile)
   "Generates a random town of n people with the given vector of styles."
   (let ((out (make-array (list population) :adjustable volatile)))
     (dotimes (i population)
-      (setf (aref out i) (make-inhabitant :style (aref styles (random (length styles))))))
+      (setf (aref out i) (make-instance 'inhabitant :style (aref styles (random (length styles))))))
     out))
                
 (defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
@@ -114,20 +119,25 @@
       (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :VISIBILITY ~a @ t = ~a"
               (adjustable-array-p population) (length population) (* tendency 100) (length styles) visibility ticks))))
 
-(defgeneric copy-town (town)
+(defmethod print-object ((object inhabitant) stream)
+  (with-accessors ((type inhabitant-type) (tendency hipsterish-tendency) (styles styles)) object
+    (print-unreadable-object (object stream :type t :identity t)
+      (format stream "~@c ~:[(~a) ~;~*~]:TENDENCY ~4,2f%" styles (eql type :hipster) type (* tendency 100)))))
+
+(defgeneric copy (town)
   (:documentation "Returns a deep copy of a given town. Useful for when you need to keep the initiator town around.")
   (:method ((town town-snapshot))
     (make-instance 'town-snapshot
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (map 'vector #'copy-inhabitant (population town))
+                   :population          (map 'vector #'copy (population town))
                                         ; This line might have to change as I may replace the characters with actual human objects.
                    :time                (ticks town)))
   (:method ((town delayed-town))
     (make-instance 'delayed-town
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (map 'vector #'copy-inhabitant (population town)) ; Same here.
+                   :population          (map 'vector #'copy (population town)) ; Same here.
                    :time                (ticks town)
                    :period              (period town)
                    :history             (loop with history = (make-array (list (period town) (length (population town)))
@@ -135,15 +145,20 @@
                                               ;; Copying multidimensional arrays = ugh.
                                               for i from 0 below (period town)
                                               do (loop for j from 0 below (length (population town))
-                                                       do (setf (aref history i j) (copy-inhabitant (aref (town-history town) i j))))
+                                                       do (setf (aref history i j) (copy (aref (town-history town) i j))))
                                               finally (return history))))
   (:method ((town foggy-town))
     (Make-instance 'foggy-town
                    :visibility          (visibility town)
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (styles town)
-                   :population          (map 'vector #'copy-inhabitant (population town))
-                   :time                (ticks town))))
+                   :population          (map 'vector #'copy (population town))
+                   :time                (ticks town)))
+  (:method ((town inhabitant))
+    (make-instance 'inhabitant
+                   :hipsterish-tendency (hipsterish-tendency town)
+                   :style               (styles town)
+                   :type                (inhabitant-type town))))
 
 ;;; Other methods
 
@@ -255,7 +270,7 @@
 ;;; When seeing the development of the town, we need to repeat things a lot.
 (defmacro with-town-iterator ((var town &key (times 20) (tick-time :before) copyp) &body body)
   "Creates a loop that evolves a town, allowing the user to do something for each generation of the town. Can be made nondestructive by passing non-nil to copyp."
-  `(let ((,var ,(if copyp `(copy-town ,town) town)))
+  `(let ((,var ,(if copyp `(copy ,town) town)))
      (assert (typep ,var 'town-snapshot))
      (assert (typep ,tick-time '(member :before :after)))
      (loop repeat ,times
