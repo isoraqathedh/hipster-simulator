@@ -129,36 +129,39 @@
   (:method ((town town-snapshot))
     (make-instance 'town-snapshot
                    :hipsterish-tendency (hipsterish-tendency town)
-                   :styles              (styles town)
+                   :styles              (copy-seq (styles town))
                    :population          (map 'vector #'copy (population town))
                                         ; This line might have to change as I may replace the characters with actual human objects.
                    :time                (ticks town)))
   (:method ((town delayed-town))
     (make-instance 'delayed-town
                    :hipsterish-tendency (hipsterish-tendency town)
-                   :styles              (styles town)
+                   :styles              (copy-seq (styles town))
                    :population          (map 'vector #'copy (population town)) ; Same here.
                    :time                (ticks town)
                    :period              (period town)
                    :history             (loop with history = (make-array (list (period town) (length (population town)))
-                                                                         :adjustable (adjustable-array-p (town-history town)))
+                                                                         :adjustable (adjustable-array-p (town-history town))
+                                                                         :initial-element nil)
+                                              with to-copy = (town-history town)
                                               ;; Copying multidimensional arrays = ugh.
                                               for i from 0 below (period town)
                                               do (loop for j from 0 below (length (population town))
-                                                       do (setf (aref history i j) (copy (aref (town-history town) i j))))
+                                                       when (aref to-copy i j)
+                                                         do (setf (aref history i j) (copy (aref to-copy i j))))
                                               finally (return history))))
   (:method ((town foggy-town))
     (Make-instance 'foggy-town
                    :visibility          (visibility town)
                    :hipsterish-tendency (hipsterish-tendency town)
-                   :styles              (styles town)
+                   :styles              (copy-seq (styles town))
                    :population          (map 'vector #'copy (population town))
                    :time                (ticks town)))
-  (:method ((town inhabitant))
+  (:method ((inhabitant inhabitant))
     (make-instance 'inhabitant
-                   :hipsterish-tendency (hipsterish-tendency town)
-                   :style               (styles town)
-                   :type                (inhabitant-type town))))
+                   :hipsterish-tendency (hipsterish-tendency inhabitant)
+                   :style               (styles inhabitant)
+                   :inhabitant-type     (inhabitant-type inhabitant))))
 
 ;;; Other methods
 
