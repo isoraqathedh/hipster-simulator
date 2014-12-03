@@ -207,34 +207,38 @@
   (let ((style-alist (cdr (assoc style style-alist))))
     (car (nth (random (length style-alist)) style-alist))))
 
+(defgeneric deconform (town stickiness)
+  (:documentation "Find-next-tick algorithm. Destructively modifies the snapshot so that inhabitants attempt to wear the less popular style. 
+Stickiness refers to how likely any inhabitant would like to keep the clothes that are currently on if the inhabitant decides not to be nonconformist.")
+  (:method ((town town-snapshot) (stickiness number))
+    (let ((candidate-styles (survey town)))
+      (with-accessors ((population population) (tendency hipsterish-tendency) (town-styles styles)) town
+        (loop for i across population
+            do (setf (styles i)
+                     (cond
+                       ((true-with-probability tendency)
+                        (select-style (styles i) candidate-styles))
+                       ((true-with-probability stickiness) (styles i))
+                       (t (aref town-styles (random (length town-styles)))))))))))
+
+(defgeneric wander (town stickiness)
+  (:documentation "Find-next-tick algorithm. Destructively modifies the snapshot so that the inhabitants randomly change clothes sometimes.
+Stickiness refers to how likely any inhabitant would like to keep the clothes that are currently on.")
+  (:method ((town town-snapshot) (stickiness number))
+    (with-accessors ((town-styles styles) (population population)) town
+      (loop for i across population
+            do (setf (styles i)
+                     (if (true-with-probability stickiness)
+                         (styles i)
+                         (aref town-styles (random (length town-styles)))))))))
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
-    (let ((candidate-styles (survey town)))
-      (loop for i across (population town)
-            do (setf (styles i)
-                     (cond
-                       ((true-with-probability (hipsterish-tendency town))
-                        (select-style (styles i) candidate-styles))
-                       ((true-with-probability 10/11) (styles i))
-                       (t (aref (styles town) (random (length (styles town))))))))))
+    (deconform town 10/11))
   (:method ((town delayed-town))
     (if (null (aref (town-history town) (mod (1+ (ticks town)) (period town)) 0))
-        ;; While the history fills up, randomly wander, changing fashions 1/6 of the time
-        (loop for i across (population town)
-              do (setf (styles i)
-                       (if (true-with-probability 1/6)
-                           (aref (styles town) (random (length (styles town))))
-                           (styles i))))
-        (let ((candidate-styles (survey town)))
-          ;; After that, proceed as normal
-          (loop for i across (population town)
-                do (setf (styles i)
-                         (cond
-                           ((true-with-probability (hipsterish-tendency town))
-                            (select-style (styles i) candidate-styles))
-                           ((true-with-probability 10/11) (styles i))
-                           (t (aref (styles town) (random (length (styles town)))))))))))
+        (wander town 5/6)        ; While the history fills up, randomly wander, changing fashions 1/6 of the time
+        (deconform town 10/11))) ; After that, proceed as normal
   (:method :after ((town town-snapshot))
     (incf (ticks town)))
   (:method :after ((town delayed-town))
