@@ -251,9 +251,9 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
 
 ;;; Reporting methods
 
-(defgeneric print-population (town &key stream limit specific-style)
+(defgeneric write-population (town stream &key limit specific-style)
   (:documentation "Prints out the members in the population along with a generation number wearing the given style if non-nil, truncated to [limit] members if provided.")
-  (:method ((town town-snapshot) &key (stream t) limit specific-style)
+  (:method ((town town-snapshot) (stream (eql *standard-output*)) &key limit specific-style)
     (with-accessors ((age ticks) (members population)) town
       (format stream "~&~3d: ~{~a~}~:[~;…~]"
               age
@@ -263,9 +263,13 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
                   (map 'list #'styles (subseq members 0 limit)))
               limit))))
 
-(defgeneric print-popularity (town &key stream limit)
+(defun print-population (town &key limit specific-style)
+  "Shorthand for write-population to *standard-output*."
+  (write-population town *standard-output* :limit limit :specific-style specific-style))
+
+(defgeneric write-popularity (town stream &key limit)
   (:documentation "Prints out the styles and its percentage popularity, along with a genreation number, truncated to [limit] styles if provided.")
-  (:method ((town town-snapshot) &key (stream t) limit)
+  (:method ((town town-snapshot) (stream (eql *standard-output*)) &key limit)
     (with-accessors ((age ticks) (members population) (styles styles)) town
       (format stream "~&~3d:  " age)
       (loop for i across styles
@@ -273,6 +277,10 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
             do (format stream "~a ~7,2f%~,20t" i (/ (count-if #'(lambda (a) (char-equal i (styles a))) members)
                                                  (length members)
                                                  1/100))))))
+
+(defun print-popularity (town &key limit)
+  "Shorthand for write-population to *standard-output*."
+  (write-popularity town *standard-output* :limit limit :specific-style specific-style))
 
 ;;; When seeing the development of the town, we need to repeat things a lot.
 (defmacro with-town-iterator ((var town &key (times 20) (tick-time :before) copyp) &body body)
