@@ -216,7 +216,7 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
         (loop for i across population
             do (setf (styles i)
                      (cond
-                       ((true-with-probability tendency)
+                       ((true-with-probability (hipsterish-tendency i))
                         (select-style (styles i) candidate-styles))
                        ((true-with-probability stickiness) (styles i))
                        (t (aref town-styles (random (length town-styles)))))))))))
