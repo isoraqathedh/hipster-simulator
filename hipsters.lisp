@@ -237,7 +237,7 @@
   (:method :after ((town delayed-town))
     (loop for i across (population town)
           for j from 0
-          do (setf (aref (town-history town) (mod (ticks town) (period town)) j) (copy-inhabitant i))))
+          do (setf (aref (town-history town) (mod (ticks town) (period town)) j) (copy i))))
   (:method :around ((town town-snapshot))
     (call-next-method)
     town))
