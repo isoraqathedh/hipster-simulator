@@ -26,7 +26,6 @@
                         :accessor hipsterish-tendency
                         :documentation "How likely would this individual be nonconformist at any given time."))
   (:documentation "An inhabitant in a hipster town."))
-          
 
 (defclass town-snapshot ()
   ((ticks :initform 0
@@ -42,7 +41,7 @@
            :documentation "Available styles. Styles are always represented by characters.")
    (hipsterish-tendency :initarg :hipsterish-tendency
                         :accessor hipsterish-tendency
-                        :documentation "How likely would any inidividual be nonconformist at any given time."))
+                        :documentation "How likely would any individual be nonconformist at any given time."))
   (:documentation "A hipster town at a particular time."))
 
 (defclass delayed-town (town-snapshot)
@@ -70,7 +69,7 @@
     (dotimes (i population)
       (setf (aref out i) (make-instance 'inhabitant :style (aref styles (random (length styles))))))
     out))
-               
+
 (defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
   "Builds a new town with a population of population, seeding with the two types of clothes."
   (make-instance 'town-snapshot
@@ -151,7 +150,7 @@
                                                          do (setf (aref history i j) (copy (aref to-copy i j))))
                                               finally (return history))))
   (:method ((town foggy-town))
-    (Make-instance 'foggy-town
+    (make-instance 'foggy-town
                    :visibility          (visibility town)
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (copy-seq (styles town))
@@ -231,6 +230,7 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
                      (if (true-with-probability stickiness)
                          (styles i)
                          (aref town-styles (random (length town-styles)))))))))
+
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
@@ -274,9 +274,7 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
       (format stream "~&~3d:  " age)
       (loop for i across styles
             for j from 0 below (or limit (length styles))
-            do (format stream "~a ~7,2f%~,20t" i (/ (count-if #'(lambda (a) (char-equal i (styles a))) members)
-                                                 (length members)
-                                                 1/100))))))
+            do (format stream "~a ~7,2f%~,20t" i (/ (count-if #'(lambda (a) (char-equal i (styles a))) members) (length members) 1/100))))))
 
 (defun print-popularity (town &key limit)
   "Shorthand for write-population to *standard-output*."
