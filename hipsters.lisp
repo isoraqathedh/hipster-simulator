@@ -130,13 +130,12 @@
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (copy-seq (styles town))
                    :population          (map 'vector #'copy (population town))
-                                        ; This line might have to change as I may replace the characters with actual human objects.
                    :time                (ticks town)))
   (:method ((town delayed-town))
     (make-instance 'delayed-town
                    :hipsterish-tendency (hipsterish-tendency town)
                    :styles              (copy-seq (styles town))
-                   :population          (map 'vector #'copy (population town)) ; Same here.
+                   :population          (map 'vector #'copy (population town))
                    :time                (ticks town)
                    :period              (period town)
                    :history             (loop with history = (make-array (list (period town) (length (population town)))
