@@ -1,7 +1,7 @@
 ;;;; HIPSTER SIMULATOR 2014
 ;;;; A Common Lisp implmentation of the hipster model as seen in http://arxiv.org/abs/1410.8001.
 
-(defpackage info.isoraqathedh.hipster-simulator
+(defpackage :info.isoraqathedh.hipster-simulator
   (:use :cl)
   (:nicknames :hipster-simulator))
 
