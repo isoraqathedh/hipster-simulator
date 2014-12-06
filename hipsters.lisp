@@ -72,12 +72,16 @@
 
 (defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
   "Builds a new town with a population of population, seeding with the two types of clothes."
+  (when (numberp styles)
+    (setf styles (subseq *style-character-list* 0 styles)))
   (make-instance 'town-snapshot
                  :population (generate-random-town population styles volatile)
                  :styles styles
                  :hipsterish-tendency hipsterish-tendency))
 
 (defun make-delayed-town (population period &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
+  (when (numberp styles)
+    (setf styles (subseq *style-character-list* 0 styles)))
   (make-instance 'delayed-town
                  :population (generate-random-town population styles volatile)
                  :period period
@@ -92,6 +96,8 @@
           do (setf (aref (town-history instance) 0 j) i))))
 
 (defun make-foggy-town (population visibility &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
+  (when (numberp styles)
+    (setf styles (subseq *style-character-list* 0 styles)))
   (make-instance 'foggy-town
                  :population (generate-random-town population styles volatile)
                  :visibility visibility
