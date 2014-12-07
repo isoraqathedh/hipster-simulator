@@ -285,6 +285,23 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
   "Shorthand for write-population to *standard-output*."
   (write-popularity town *standard-output* :limit limit :specific-style specific-style))
 
+(defgeneric write-inhabitant-types (town stream &key limit)
+  (:documentation "Prints out the type of inhabitant.")
+  (:method ((town town-snapshot) (stream (eql *standard-output*)) &key limit)
+    (format stream "~&Cat: ")
+    (loop for i across (population town)
+          for j from 0 to (or limit (length (population town)))
+          do (format stream "~c"
+                     (case (inhabitant-type i)
+                       (:hipster #\h)
+                       (:conformist #\c)
+                       (:celebrity #\*)
+                       (otherwise #\?))))))
+
+(defun print-inhabitant-types (town &key limit)
+  "Shorthand for write-inhabitant-type to *standard-output*."
+  (write-inhabitant-types town *standard-output* :limit limit))
+
 ;;; When seeing the development of the town, we need to repeat things a lot.
 (defmacro with-town-iterator ((var town &key (times 20) (tick-time :before) copyp) &body body)
   "Creates a loop that evolves a town, allowing the user to do something for each generation of the town. Can be made nondestructive by passing non-nil to copyp."
