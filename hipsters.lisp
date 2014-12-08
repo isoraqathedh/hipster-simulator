@@ -38,10 +38,7 @@
                :documentation "List of everyone who lives in the town, marked by their clothing choice.")
    (styles :initarg :styles
            :accessor styles
-           :documentation "Available styles. Styles are always represented by characters.")
-   (hipsterish-tendency :initarg :hipsterish-tendency
-                        :accessor hipsterish-tendency
-                        :documentation "How likely would any individual be nonconformist at any given time."))
+           :documentation "Available styles. Styles are always represented by characters."))
   (:documentation "A hipster town at a particular time."))
 
 (defclass delayed-town (town-snapshot)
@@ -63,11 +60,14 @@
 
 ;;; Class constructors
 
-(defun generate-random-town (population styles volatile)
+(defun generate-random-town (population styles volatile hipsterish-tendency)
   "Generates a random town of n people with the given vector of styles."
   (let ((out (make-array (list population) :adjustable volatile)))
     (dotimes (i population)
-      (setf (aref out i) (make-instance 'inhabitant :style (aref styles (random (length styles))))))
+      (setf (aref out i)
+            (make-instance 'inhabitant
+                           :style (aref styles (random (length styles)))
+                           :hipsterish-tendency hipsterish-tendency)))
     out))
 
 (defun make-town (population &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
@@ -75,18 +75,16 @@
   (when (numberp styles)
     (setf styles (subseq *style-character-list* 0 styles)))
   (make-instance 'town-snapshot
-                 :population (generate-random-town population styles volatile)
-                 :styles styles
-                 :hipsterish-tendency hipsterish-tendency))
+                 :population (generate-random-town population styles volatile hipsterish-tendency)
+                 :styles styles))
 
 (defun make-delayed-town (population period &key (hipsterish-tendency 2/3) (styles #(#\# #\.)) volatile)
   (when (numberp styles)
     (setf styles (subseq *style-character-list* 0 styles)))
   (make-instance 'delayed-town
-                 :population (generate-random-town population styles volatile)
+                 :population (generate-random-town population styles volatile hipsterish-tendency)
                  :period period
                  :history (make-array (list period population) :adjustable volatile :initial-element nil)
-                 :hipsterish-tendency hipsterish-tendency
                  :styles styles))
 
 (defmethod initialize-instance :after ((instance delayed-town) &key)
@@ -99,30 +97,29 @@
   (when (numberp styles)
     (setf styles (subseq *style-character-list* 0 styles)))
   (make-instance 'foggy-town
-                 :population (generate-random-town population styles volatile)
+                 :population (generate-random-town population styles volatile hipsterish-tendency)
                  :visibility visibility
-                 :hipsterish-tendency hipsterish-tendency
                  :styles styles))
 
 ;;; Common class methods
 
 (defmethod print-object ((object town-snapshot) stream)
-  (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles)) object
+  (with-accessors ((ticks ticks) (population population) (styles styles)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a @ t = ~a"
-              (adjustable-array-p population) (length population) (* tendency 100) (length styles) ticks))))
+      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :STYLES ~a @ t = ~a"
+              (adjustable-array-p population) (length population) (length styles) ticks))))
 
 (defmethod print-object ((object delayed-town) stream)
-  (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (period period)) object
+  (with-accessors ((ticks ticks) (population population) (styles styles) (period period)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :DELAY ~a @ t = ~a"
-              (adjustable-array-p population) (length population) (* tendency 100) (length styles) period ticks))))
+      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :STYLES ~a :DELAY ~a @ t = ~a"
+              (adjustable-array-p population) (length population) (length styles) period ticks))))
 
 (defmethod print-object ((object foggy-town) stream)
-  (with-accessors ((ticks ticks) (population population) (tendency hipsterish-tendency) (styles styles) (visibility visibility)) object
+  (with-accessors ((ticks ticks) (population population) (styles styles) (visibility visibility)) object
     (print-unreadable-object (object stream :type t)
-      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :TENDENCY ~4,2f% :STYLES ~a :VISIBILITY ~a @ t = ~a"
-              (adjustable-array-p population) (length population) (* tendency 100) (length styles) visibility ticks))))
+      (format stream ":~:[~;VOLATILE-~]POPULATION ~a :STYLES ~a :VISIBILITY ~a @ t = ~a"
+              (adjustable-array-p population) (length population) (length styles) visibility ticks))))
 
 (defmethod print-object ((object inhabitant) stream)
   (with-accessors ((type inhabitant-type) (tendency hipsterish-tendency) (styles styles)) object
@@ -134,14 +131,12 @@
   (:method ((town town-snapshot))
     (make-instance
      'town-snapshot
-     :hipsterish-tendency (hipsterish-tendency town)
      :styles              (copy-seq (styles town))
      :population          (map 'vector #'copy (population town))
      :time                (ticks town)))
   (:method ((town delayed-town))
     (make-instance
      'delayed-town
-     :hipsterish-tendency (hipsterish-tendency town)
      :styles              (copy-seq (styles town))
      :population          (map 'vector #'copy (population town))
      :time                (ticks town)
@@ -160,7 +155,6 @@
     (make-instance
      'foggy-town
      :visibility          (visibility town)
-     :hipsterish-tendency (hipsterish-tendency town)
      :styles              (copy-seq (styles town))
      :population          (map 'vector #'copy (population town))
      :time                (ticks town)))
