@@ -294,7 +294,10 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
                        (:hipster #\h)
                        (:conformist #\c)
                        (:celebrity #\*)
-                       (otherwise #\?))))))
+                       (otherwise #\?)))
+          finally
+             (when limit
+               (format stream "…")))))
 
 (defun print-inhabitant-types (town &key limit)
   "Shorthand for write-inhabitant-type to *standard-output*."
