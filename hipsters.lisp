@@ -167,6 +167,15 @@
 
 ;;; Other methods
 
+(defgeneric nth-inhabitant (town n)
+  (:documentation"Finds the nth (zero-based) inhabitant in a town.")
+  (:method ((town town-snapshot) (n number))
+     (aref (population town) n)))
+
+(defgeneric (setf nth-inhabitant) (value town n)
+  (:method (value (town town-snapshot) (n number))
+    (setf (nth-inhabitant town n) value)))
+
 ;;; Methods pertaining to direct simulation
 
 (defun true-with-probability (probability)
