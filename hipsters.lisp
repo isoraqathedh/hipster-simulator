@@ -10,6 +10,10 @@
 (defvar *style-character-list* "#.=?O|+*_:~X;'$%^\"/vq`"
   "List of characters eligible for styles. This can be rebound if you desire more characters.")
 
+(defvar *simulation-parameters*
+  '((:stickiness-in-wandering . 5/6)
+    (:stickiness-in-deconforming . 10/11)))
+
 ;;; Classes
 
 (defclass inhabitant ()
@@ -168,7 +172,7 @@
 ;;; Other methods
 
 (defgeneric nth-inhabitant (town n)
-  (:documentation"Finds the nth (zero-based) inhabitant in a town.")
+  (:documentation "Finds the nth (zero-based) inhabitant in a town.")
   (:method ((town town-snapshot) (n number))
      (aref (population town) n)))
 
@@ -246,11 +250,13 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
-    (deconform town 10/11))
+    (deconform town (cdr (assoc :stickiness-in-deconforming *simulation-parameters))))
   (:method ((town delayed-town))
     (if (null (aref (town-history town) (mod (1+ (ticks town)) (period town)) 0))
-        (wander town 5/6)        ; While the history fills up, randomly wander, changing fashions 1/6 of the time
-        (deconform town 10/11))) ; After that, proceed as normal
+        (wander town (cdr (assoc :stickiness-in-wandering *simulation-parameters*)))
+                                        ; While the history fills up, randomly wander, changing fashions 1/6 of the time
+        (deconform town (cdr (assoc :stickiness-in-deconforming *simulation-parameters*)))))
+                                        ; After that, proceed as normal
   (:method :after ((town town-snapshot))
     (incf (ticks town)))
   (:method :after ((town delayed-town))
