@@ -12,7 +12,10 @@
 
 (defvar *simulation-parameters*
   '((:stickiness-in-wandering . 5/6)
-    (:stickiness-in-deconforming . 10/11)))
+    (:stickiness-in-deconforming . 10/11)
+    (:hipsterish-tendency . 2/3)
+    (:style-count . 2))
+  "Sets the defaults for constructing and stepping through simulations.")
 
 ;;; Classes
 
@@ -250,7 +253,7 @@ Stickiness refers to how likely any inhabitant would like to keep the clothes th
 (defgeneric tick! (town)
   (:documentation "Destructively modifies a snapshot to become the next iteration of the simulation.")
   (:method ((town town-snapshot))
-    (deconform town (cdr (assoc :stickiness-in-deconforming *simulation-parameters))))
+    (deconform town (cdr (assoc :stickiness-in-deconforming *simulation-parameters*))))
   (:method ((town delayed-town))
     (if (null (aref (town-history town) (mod (1+ (ticks town)) (period town)) 0))
         (wander town (cdr (assoc :stickiness-in-wandering *simulation-parameters*)))
